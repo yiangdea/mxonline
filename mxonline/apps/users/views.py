@@ -11,6 +11,7 @@ from .models import UserProfile, EmailVerifyRecord
 from .forms import LoginForm, RegisterForm
 from utils.email_send import send_register_email
 
+
 # authenticate custom
 class CustomBackend(ModelBackend):
     def authenticate(self, username=None, password=None, **kwargs):
@@ -24,13 +25,16 @@ class CustomBackend(ModelBackend):
 
 
 class ActiveUserView(View):
-    def get(self, request, active_code):
-        verify_record = EmailVerifyRecord.objects.get(code=active_code)
-        if verify_record is not None:
-            user = UserProfile.objects.get(email=verify_record.email)
-            user.is_active = True
-            user.save()
 
+    def get(self, request, active_code):
+        record_list = EmailVerifyRecord.objects.filter(code=active_code)
+        if record_list:
+            for rc in record_list:
+                user = UserProfile.objects.get(email=rc.email)
+                user.is_active = True
+                user.save()
+        else:
+            return render(request, 'active_fail.html')
         return render(request, 'login.html')
 
 
@@ -43,6 +47,9 @@ class RegisterView(View):
         register_form = RegisterForm(request.POST)
         if register_form.is_valid():
             user_name = request.POST.get("email", "")
+            if UserProfile.objects.filter(email=user_name):
+                return render(request, 'register.html', {'msg': u'email已被注册',
+                                                         'register_form': register_form})
             user_password = request.POST.get("password", "")
             user_profile = UserProfile()
             user_profile.username = user_name
@@ -77,3 +84,8 @@ class LoginView(View):
                 return render(request, 'login.html', {"msg": "用户名或密码错误!"})
         else:
             return render(request, 'login.html', {"login_form":login_form})
+
+
+class ForgetPwdView(View):
+    def get(self, request):
+        return render(request, "forgetpwd.html")
